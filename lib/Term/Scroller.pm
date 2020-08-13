@@ -17,12 +17,52 @@ Term::Scroller - [description]
 
 =cut
 
+use Exporter;
+
+our @ISA = qw(Exporter);
+our @EXPORT = qw(scroller);
+
+use Carp;
+use IO::Pty;
+
+sub scroller {
+    my $pty     = IO::Pty->new;
+
+    defined(my $pid = fork)     or croak "unable to fork: $!";
+
+    if ($pid == 0) {
+        # Child
+        my $slave = $pty->slave;
+
+        my @buffer;
+
+        print "\n";
+        while(<$slave>) {
+            chomp;
+
+            printf "\033[%d;F", scalar(@buffer);
+
+            push @buffer, $_;
+            shift @buffer if @buffer > 8;
+
+
+            print "$_\033[K\n"  for (@buffer);
+        }
+
+        close $slave;
+
+        exit
+    }
+
+    return $pty;
+}
+
+
 1;
 
 =head1 AUTHOR
 
 Cameron Tauxe C<camerontauxe@gmail.com>
-
 
 =head1 LICENSE AND COPYRIGHT
 

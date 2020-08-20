@@ -17,8 +17,9 @@ my $builder = Module::Build->new(
         'Test::More' => '0',
     },
     requires => {
-        #'ABC'              => '1.6',
-        #'Foo::Bar::Module' => '5.0401',
+        'perl'          => '5.020',
+        'IO::Pty'       => '1.14',
+        'Term::ReadKey' => '2.38'
     },
     add_to_cleanup     => [ 'Term-Scroller-*' ],
 );

@@ -1,0 +1,166 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+=head1 NAME
+
+scroller - view a command's output in a scrolling window
+
+=head1 SYNOPSIS
+
+scroller [-h|--help] [-s|--size SIZE] [-c|--color COLOR] 
+         [--on-exit hide|error|print]
+
+See the manpage I<scroller(1)> for more details.
+
+=head1 DESCRIPTION
+
+scroller runs a provided command and displays its output (both stderr
+and stdout) in a scrolling window in the terminal. By default, the window
+is 10 lines tall and as wide as the currently connected terminal, although
+this size can be set manually using the I<--size>/I<-s> option.
+
+Interactive commands or commands that themselves manipulate the terminal will
+I<not> play nice with scroller and will likely produce garbled output.
+
+=head1 OPTIONS
+
+=over 4
+
+=item * I<-h>, I<--help> 
+
+Display help and exit.
+
+=item * I<-s>, I<--size> B<SIZE>
+
+Set the size of view window. B<SIZE> is of the form I<H[xW]> where I<H> is the 
+height (in lines) of the window and I<W> is the width (in columns) of the
+window. If width isn't specifed, it will default to the width the connected
+terminal (or 80 if the width couldn't be determined for some reason).
+
+=item * I<-c>, I<--color> B<COLOR>
+
+Set the color of the text within the window. B<COLOR> is any ANSI escape
+sequence B<without> the initial escape character (e.g. "[33m" for blue text).
+If this is set, any escape sequences within the command's actual output will
+be ignored. Without it, color-setting escape sequences in the output are passed
+through.
+
+=item * I<--on-exit> B<hide|error|print>
+
+Set the behavior of scroller after the command exits. Value is one of I<hide>,
+I<error> or I<print>. If I<hide>, then the window will be erased. If I<print>,
+then the window will be erased and the B<entire> output of the command will
+be printed. I<error> is like I<print> except the output will only be printed 
+if the command fails (non-zero exit status). If this option is not specified,
+then nothing special happens and the window will remain with the last lines of
+output still visible.
+
+=back
+=cut
+
+use Term::Scroller;
+
+use File::Temp;
+use Getopt::Long qw(:config auto_help);
+use Pod::Usage qw(pod2usage);
+use POSIX qw(:sys_wait_h);
+use Scalar::Util qw(openhandle);
+
+# Parse options
+my ($width, $height, $style, $onexit);
+my $success = GetOptions(
+    's|size=s'  => sub {
+        my ($name, $val) = @_;
+        ($height, $width) = ( $val =~ m/^(\d+)(?:x(\d+))?$/ );
+        die "Invalid size spec. Must be 'H[xW]'" unless defined $height;
+    },
+    'c|color=s' => sub {
+        my ($name, $val) = @_;
+        die "Invalid escape sequence for color."
+            unless $val =~ m/^\[\d+(?>(;\d)+)*m$/;
+        $style = $val;
+    },
+    'on-exit=s' => sub {
+        my ($name, $val) = @_;
+        die "Invalid --on-exit value. Must be 'hide','print' or 'error'."
+            unless $val =~ m/^(?:hide|print|error)$/i;
+        $onexit = lc $val;
+    }
+);
+pod2usage("Error in arguments.")  unless $success;
+pod2usage("Must specify command") unless @ARGV;
+my @command = @ARGV;
+
+# Create a temporary file to store output if we
+# may need to print it afterwards
+my $passthru;
+if ( defined $onexit and $onexit ne 'hide' ) {
+    $passthru = File::Temp->new;
+}
+
+# Create scroller
+my $scroller = scroller(
+    height      => $height,
+    width       => $width,
+    style       => defined $style ? "\033$style" : undef,
+    hide        => $onexit,
+
+    passthrough => $passthru,
+    getpid      => \my $pty_pid
+);
+close $passthru if openhandle($passthru);
+
+# Fork and exec command
+defined(my $comm_pid = fork)     or die "unable to fork: $!";
+if ($comm_pid == 0) {
+    # Child
+    open STDOUT, '>&', $scroller;
+    open STDERR, '>&', $scroller;
+    close $scroller;
+
+    exec @command;
+}
+
+# Parent
+close $scroller;
+
+# Reap children procs
+my $kids = 2;
+my $exitcode;
+while ($kids) {
+    my $pid = waitpid(-1, 0);
+    $kids--;
+    $exitcode = $?  if $pid == $comm_pid;
+}
+
+# Print output if 'print' or 'error' was specifed for the on-exit action.
+if (defined $passthru) {
+    open(my $tempfile, '<', $passthru);
+    if    ($onexit eq 'print') {
+        print while (<$tempfile>);
+    }
+    elsif ($onexit eq 'error' and ( $exitcode >> 8 != 0 )) {
+        print while (<$tempfile>);
+    }
+    close $tempfile;
+}
+
+exit $exitcode >> 8;
+
+=head1 SEE ALSO
+
+L<Term::Scroller>
+
+=head1 AUTHOR
+
+Cameron Tauxe, C<camerontauxe at gmail.com>
+
+=head1 LICENSE AND COPYRIGHT
+
+This software is copyright (c) 2020 by Cameron Tauxe.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
+
+=cut

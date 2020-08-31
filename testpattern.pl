@@ -15,23 +15,9 @@ my @pattern = (
 push @pattern, reverse @pattern;
 $_ = "$_    "x10 for (@pattern);
 
-my $scroller = scroller(
-    height  => 20,
-    width   => 47,
-#    style   => "\033[2m",
-    hide    => 1,
-    out     => *STDERR,
-    getpid  => \my $pid
-);
-
 for (1..5) {
     for (@pattern) {
         print "$_\n";
         usleep 60_000;
     }
 }
-close $scroller;
-
-waitpid($$pid, 0);
-
-print "Done!\n";

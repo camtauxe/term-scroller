@@ -6,7 +6,7 @@ use warnings;
 
 use feature 'unicode_strings';
 
-our $VERSION = '1.01';
+our $VERSION = '1.1';
 
 =head1 NAME
 
@@ -87,6 +87,12 @@ will truncated at this width, not including ANSI escape sequences.
 (B<Default>: the width of the connected terminal, or 80 if the width
 couldn't be determined for some reason).
 
+=item * B<tabwidth>
+
+Integer representing the width of tabs (in characters) when viewed in the
+viewport. For consistent printing, tabs are replaced with this number of
+spaces. (B<Default>: 4)
+
 =item * B<style>
 
 A string representing an ANSI color escape sequence used to style the text
@@ -137,6 +143,7 @@ sub new {
     my %params = @_;
     my $buf_height  = $params{height}       // 10;
     my $buf_width   = $params{width}        // (GetTerminalSize)[0]    // 80;
+    my $tab_width   = $params{tabwidth}     // 4;
     my $style       = $params{style};
     my $windowspec  = $params{window};
     my $outfh       = $params{out}          // qualify_to_ref(select);
@@ -163,6 +170,8 @@ sub new {
 
     my @buf;
     my $slave = $pty->slave;
+
+    my $tab = " "x$tab_width;
 
     # Parse window
     my $line_end   = "";
@@ -203,6 +212,7 @@ sub new {
         }
 
         chomp $line;
+        $line =~ s/\t/$tab/g;
         my $to_print = "";
 
         if (defined $style) {

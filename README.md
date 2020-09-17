@@ -23,7 +23,7 @@ perl Build.PL
 ## Usage
 
 ```
-scroller [-h|--help] \[-s|--size SIZE\] [-c|--color COLOR] 
+scroller [-h|--help] [-s|--size SIZE] [-c|--color COLOR] [-t|--tab-width WIDTH]
          [--on-exit keep|error|print] [-w|--window WINDOWSPEC]
          COMMAND ARGS..
 ```
@@ -75,6 +75,12 @@ scroller mycommand | myothercommand
     If this is set, any escape sequences within the command's actual output will
     be ignored. Without it, color-setting escape sequences in the output are passed
     through.
+
+- _-t_, _--tab-width_ **WIDTH**
+
+    Set the width of tabs (in characters) when viewed in the viewport. 
+    For consistent printing, tabs are replaced with this number of spaces.
+    Defaults to 4.
 
 - _--on-exit_ **keep|error|print**
 

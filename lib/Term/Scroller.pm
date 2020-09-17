@@ -6,7 +6,7 @@ use warnings;
 
 use feature 'unicode_strings';
 
-our $VERSION = '1.0';
+our $VERSION = '1.01';
 
 =head1 NAME
 
@@ -41,7 +41,6 @@ see L<scroller>.
 
 =cut
 
-use Exporter;
 use IO::Handle;
 
 use Carp;
@@ -52,22 +51,21 @@ use List::Util qw(any);
 use IO::Pty;
 use Term::ReadKey qw(GetTerminalSize);
 
-our @ISA = qw(Exporter IO::Pty);
-our @EXPORT = qw(scroller);
+our @ISA = qw(IO::Pty);
 
 =head1 Methods
 
 =head2 new
 
-(Exported by default) B<scroller> returns a new scroller instance. The scroller
-is a filehandle (actually an instance of L<IO::Pty>) where anything written to 
+Returns a new scroller instance. The scroller is a filehandle 
+(actually an instance of L<IO::Pty>) where anything written to 
 it is displayed in the scrolling window. The scroller will sanitize any
 cursor-related ANSI escape sequences so text that expects them to work might
 look garbled, but at least it should be very difficult to escape or break the
 window. color-related ANSI sequences are left untouched though so colored
 text will still work inside the window.
 
-I<Don't forget to close the filehandle when you're done with it!>
+I<Don't forget to call the 'end' method when you're done with it!>
 
 The arguments to B<scroller> are interpreted as a hash and can contain the
 following options:
